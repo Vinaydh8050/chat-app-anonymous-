@@ -1,51 +1,64 @@
 const socket = io();
+
+const startButton = document.getElementById('startButton');
+const nextButton = document.getElementById('nextButton');
+const sendButton = document.getElementById('sendButton');
+const input = document.getElementById('input');
+const messages = document.getElementById('messages');
+const chatBox = document.getElementById('chat');
+
 let roomId = null;
 
-const chatBox = document.getElementById('chatBox');
-const input = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendButton');
-const startBtn = document.getElementById('startButton');
-const leaveBtn = document.getElementById('leaveButton');
-
-function appendMessage(text, type = 'stranger') {
-  const div = document.createElement('div');
-  div.textContent = (type === 'me' ? 'You: ' : 'Stranger: ') + text;
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-startBtn.onclick = () => {
+startButton.onclick = () => {
   socket.emit('join');
-  appendMessage('Looking for a stranger...', 'me');
+  startButton.disabled = true;
 };
 
-sendBtn.onclick = () => {
+nextButton.onclick = () => {
+  if (roomId) {
+    socket.emit('leave', roomId);
+  }
+  resetChat();
+  socket.emit('join');
+};
+
+sendButton.onclick = () => {
   const message = input.value.trim();
   if (message && roomId) {
     socket.emit('message', { roomId, message });
-    appendMessage(message, 'me');
+    addMessage(`You: ${message}`, 'self');
     input.value = '';
-  }
-};
-
-leaveBtn.onclick = () => {
-  if (roomId) {
-    socket.emit('leave', roomId);
-    appendMessage('You left the chat.', 'me');
-    roomId = null;
   }
 };
 
 socket.on('room', id => {
   roomId = id;
-  appendMessage('Connected to a stranger!', 'me');
+  chatBox.style.display = 'block';
+  nextButton.disabled = false;
+  addMessage('Stranger connected!', 'system');
 });
 
 socket.on('message', message => {
-  appendMessage(message, 'stranger');
+  addMessage(`Stranger: ${message}`, 'stranger');
 });
 
 socket.on('leave', () => {
-  appendMessage('Stranger left the chat.', 'me');
-  roomId = null;
+  addMessage('Stranger disconnected.', 'system');
+  resetChat();
 });
+
+function addMessage(text, type) {
+  const msg = document.createElement('div');
+  msg.textContent = text;
+  msg.className = type;
+  messages.appendChild(msg);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function resetChat() {
+  messages.innerHTML = '';
+  roomId = null;
+  nextButton.disabled = true;
+  chatBox.style.display = 'none';
+  startButton.disabled = false;
+}
